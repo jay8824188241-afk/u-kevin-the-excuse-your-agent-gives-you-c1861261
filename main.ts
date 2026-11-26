@@ -4,7 +4,7 @@
 // and self-checks it against the competition gate: UTF-8 text of
 // 1 to 200 characters, not only whitespace, a single line.
 // Node 22+, standard library only, no network, no randomness.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const EXCUSE =
@@ -14,7 +14,16 @@ const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
 const outPath = join(outDir, "entry.txt");
 
 mkdirSync(outDir, { recursive: true });
-writeFileSync(outPath, EXCUSE, "utf8");
+
+// Write atomically: a crash mid-write must never leave a partial entry.txt.
+const tmpPath = `${outPath}.tmp`;
+try {
+  writeFileSync(tmpPath, EXCUSE, "utf8");
+  renameSync(tmpPath, outPath);
+} catch (err) {
+  rmSync(tmpPath, { force: true });
+  throw err;
+}
 
 // Self-check: read the file back and verify the gate.
 const back = readFileSync(outPath, "utf8");
